@@ -1,0 +1,1 @@
+print("Day 01 setup complete ✅") 
