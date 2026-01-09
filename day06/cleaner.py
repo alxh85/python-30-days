@@ -27,7 +27,30 @@ def load_config():
         logging.error("Config file not found! Please ensure config.json exists.")
         raise
 
-def clean_data(input_path, config):
+# --- NEW HELPER FUNCTIONS ---
+
+def convert_currency(series: pd.Series, symbol: str) -> pd.Series:
+    """
+    Takes a column of strings (e.g. '$1,200'), strips symbol/comma, 
+    and converts to numeric.
+    """
+    clean_series = series.str.replace(symbol, '').str.replace(',', '')
+    return pd.to_numeric(clean_series)
+
+def fill_missing_stock(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Fills NaNs in stock_qty with 0 and logs the count.
+    """
+    missing_count = df['stock_qty'].isna().sum()
+    if missing_count > 0:
+        logging.warning(f"Found {missing_count} missing stock values. Filling with 0.")
+    
+    # We use .copy() to ensure we don't modify the original by accident
+    df = df.copy() 
+    df['stock_qty'] = df['stock_qty'].fillna(0)
+    return df
+
+def clean_data(input_path: str, config: dict) -> pd.DataFrame:
     logging.info(f"Loading data from: {input_path}")
     
     try:
@@ -36,20 +59,16 @@ def clean_data(input_path, config):
         logging.error(f"Input file not found: {input_path}")
         raise
 
-    # Cleaning Logic
-    # check for missing values and log a warning if found
-    missing_count = df['stock_qty'].isna().sum()
-    if missing_count > 0:
-        logging.warning(f"Found {missing_count} missing stock values. Filling with 0.")
-
-    df['stock_qty'] = df['stock_qty'].fillna(0)
+    # Step 1: Handle Missing Data
+    df = fill_missing_stock(df)
     
-    # Use config for currency symbol
-    currency = config.get('currency_symbol', '$') 
-    df['unit_price'] = df['unit_price'].str.replace(currency, '').str.replace(',', '')
-    df['unit_price'] = pd.to_numeric(df['unit_price'])
+    # Step 2: Fix Data Types (Using our new helper!)
+    currency_symbol = config.get('currency_symbol', '$')
+    df['unit_price'] = convert_currency(df['unit_price'], currency_symbol)
     
+    # Step 3: Calculation
     df['total_value'] = df['stock_qty'] * df['unit_price']
+    
     return df
 
 def analyze_data(df, output_path):
