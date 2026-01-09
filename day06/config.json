@@ -1,0 +1,5 @@
+{
+    "default_input": "raw_inventory.csv",
+    "default_output": "report_v3.csv",
+    "currency_symbol": "$"
+}
